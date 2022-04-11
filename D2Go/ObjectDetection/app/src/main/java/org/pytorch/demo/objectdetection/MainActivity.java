@@ -7,6 +7,7 @@
 package org.pytorch.demo.objectdetection;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -17,6 +18,8 @@ import android.graphics.Matrix;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.util.Log;
 import android.view.View;
@@ -199,7 +202,7 @@ static {
                     if (resultCode == RESULT_OK && data != null) {
                         mBitmap = (Bitmap) data.getExtras().get("data");
                         Matrix matrix = new Matrix();
-                        matrix.postRotate(90.0f);
+                        //matrix.postRotate(90.0f); //TODO: Uncomment to rotate image
                         mBitmap = Bitmap.createBitmap(mBitmap, 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
                         mImageView.setImageBitmap(mBitmap);
                     }
@@ -217,7 +220,7 @@ static {
                                 String picturePath = cursor.getString(columnIndex);
                                 mBitmap = BitmapFactory.decodeFile(picturePath);
                                 Matrix matrix = new Matrix();
-                                matrix.postRotate(90.0f);
+                                //matrix.postRotate(90.0f); //TODO: uncomment this line to rotate image
                                 mBitmap = Bitmap.createBitmap(mBitmap, 0, 0, mBitmap.getWidth(), mBitmap.getHeight(), matrix, true);
                                 mImageView.setImageBitmap(mBitmap);
                                 cursor.close();
@@ -241,6 +244,8 @@ static {
         IValue[] outputTuple = mModule.forward(IValue.listFrom(inputTensor)).toTuple();
         final long inferenceTime = SystemClock.elapsedRealtime() - startTime;
         Log.d("D2Go",  "inference time (ms): " + inferenceTime);
+
+        Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE); //TODO: Vibrator initialization.
 
         final Map<String, IValue> map = outputTuple[1].toList()[0].toDictStringKey();
         float[] boxesData = new float[]{};
@@ -269,6 +274,18 @@ static {
                 outputs[PrePostProcessor.OUTPUT_COLUMN * count + 5] = labelsData[i] - 1;
                 count++;
             }
+
+            //TEST CODE, delete if not working
+            /*final int n_label = labelsData.length;
+            for (int i = 0; i<n; i++)
+            {
+                if (labelsData[i] == 1)// || labelsData[i] == 19 || labelsData[i] == 22)
+                {
+                    v.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
+                    System.out.println(labelsData);
+                }
+
+            }*/
 
             final ArrayList<Result> results = PrePostProcessor.outputsToPredictions(count, outputs, mImgScaleX, mImgScaleY, mIvScaleX, mIvScaleY, mStartX, mStartY);
 

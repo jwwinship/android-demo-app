@@ -1,5 +1,6 @@
 package org.pytorch.demo.objectdetection;
 
+import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.ImageFormat;
@@ -7,8 +8,20 @@ import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.media.Image;
+import android.os.VibrationEffect;
 import android.view.TextureView;
 import android.view.ViewStub;
+
+//New Imports
+import android.os.Vibrator;
+import android.speech.tts.TextToSpeech;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.SeekBar;
+import java.util.Locale;
+import android.os.Bundle;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 import androidx.annotation.WorkerThread;
@@ -29,6 +42,10 @@ import java.util.Map;
 public class ObjectDetectionActivity extends AbstractCameraXActivity<ObjectDetectionActivity.AnalysisResult> {
     private Module mModule = null;
     private ResultView mResultView;
+    private TextToSpeech mTTS;
+    private EditText mEditText;
+
+
 
     static class AnalysisResult {
         private final ArrayList<Result> mResults;
@@ -92,6 +109,27 @@ public class ObjectDetectionActivity extends AbstractCameraXActivity<ObjectDetec
         matrix.postRotate(90.0f);
         bitmap = Bitmap.createBitmap(bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
 
+        //TEXT TO SPEECH SECTION
+
+        mTTS = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    int result = mTTS.setLanguage(Locale.GERMAN);
+
+                    if (result == TextToSpeech.LANG_MISSING_DATA
+                            || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+                        Log.e("TTS", "Language not supported");
+                    } else {
+
+                    }
+                } else {
+                    Log.e("TTS", "Initialization failed");
+                }
+            }
+        });
+        //END TEXT TO SPEECH DEFINES
+
         final FloatBuffer floatBuffer = Tensor.allocateFloatBuffer(3 * bitmap.getWidth() * bitmap.getHeight());
         TensorImageUtils.bitmapToFloatBuffer(bitmap, 0,0,bitmap.getWidth(),bitmap.getHeight(), PrePostProcessor.NO_MEAN_RGB, PrePostProcessor.NO_STD_RGB, floatBuffer, 0);
         final Tensor inputTensor =  Tensor.fromBlob(floatBuffer, new long[] {3, bitmap.getHeight(), bitmap.getWidth()});
@@ -101,6 +139,8 @@ public class ObjectDetectionActivity extends AbstractCameraXActivity<ObjectDetec
         float[] boxesData = new float[]{};
         float[] scoresData = new float[]{};
         long[] labelsData = new long[]{};
+
+        Vibrator v = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE); //TODO: Vibrator initialization
 
         if (map.containsKey("boxes")) {
             final Tensor boxesTensor = map.get("boxes").toTensor();
@@ -124,6 +164,20 @@ public class ObjectDetectionActivity extends AbstractCameraXActivity<ObjectDetec
                 outputs[PrePostProcessor.OUTPUT_COLUMN * count + 4] = scoresData[i];
                 outputs[PrePostProcessor.OUTPUT_COLUMN * count + 5] = labelsData[i] - 1;
                 count++;
+
+
+            }
+            //TEST CODE, delete if not working
+            final int n_label = labelsData.length;
+            for (int i = 0; i<n; i++)
+            {
+                if (labelsData[i] == 1)// || labelsData[i] == 19 || labelsData[i] == 22)
+                {
+                    v.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
+                    System.out.println(labelsData);
+                    speak();
+                }
+
             }
 
             float imgScaleX = (float) bitmap.getWidth() / PrePostProcessor.INPUT_WIDTH;
@@ -135,5 +189,12 @@ public class ObjectDetectionActivity extends AbstractCameraXActivity<ObjectDetec
             return new AnalysisResult(results);
         }
         return null;
+    }
+
+    private void speak() {
+        mTTS.setPitch(1);
+        mTTS.setSpeechRate(1);
+
+        mTTS.speak("Person", TextToSpeech.QUEUE_FLUSH, null);
     }
 }
